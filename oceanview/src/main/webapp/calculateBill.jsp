@@ -285,7 +285,7 @@
                     try {
                         Class.forName("com.mysql.cj.jdbc.Driver");
                         Connection con = DriverManager.getConnection(
-                            "jdbc:mysql://localhost:3306/ocean_view_db", "root", "password123");
+                            "jdbc:mysql://localhost:3306/ocean_view_db", "root", "");
                         PreparedStatement pst = con.prepareStatement(
                             "SELECT * FROM reservations WHERE res_id = ?");
                         pst.setString(1, id.trim());
