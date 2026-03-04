@@ -85,6 +85,22 @@
             transition: border-color .15s, color .15s;
         }
         .btn-secondary:hover { border-color: var(--border-hover); color: var(--text-primary); }
+        
+        /* Add this to your existing <style> block */
+        .error-msg {
+            color: #ff4d4d;
+            font-size: 0.75rem;
+            margin-top: 4px;
+            display: none; /* Hidden by default */
+            animation: fadeUp 0.2s ease;
+        }
+        .error-msg.active {
+            display: block;
+        }
+        .input-error {
+            border-color: #ff4d4d !important;
+            box-shadow: 0 0 0 3px rgba(255, 77, 77, 0.1) !important;
+        }
     </style>
 </head>
 <body>
@@ -109,7 +125,7 @@
             </div>
 
             <div class="form-card">
-                <form action="SaveReservationServlet" method="POST">
+                <form id="reservationForm" action="SaveReservationServlet" method="POST">
 
                     <div class="form-row">
                         <div class="form-group">
@@ -133,10 +149,11 @@
                     </div>
 
                     <div class="form-row two-col">
-                        <div class="form-group">
-                            <label>Contact Number</label>
-                            <input type="text" name="contactNo" placeholder="+94 7X XXX XXXX" required>
-                        </div>
+                       <div class="form-group">
+    <label>Contact Number</label>
+    <input type="text" id="contactNo" name="contactNo" placeholder="e.g. 0712345678" required>
+    <span class="error-msg" id="contactError"></span>
+</div>
                         <div class="form-group">
                             <label>Room Type</label>
                             <select name="roomType">
@@ -149,16 +166,18 @@
 
                     <hr class="form-divider">
 
-                    <div class="form-row two-col">
-                        <div class="form-group">
-                            <label>Check-in Date</label>
-                            <input type="date" name="checkIn" required>
-                        </div>
-                        <div class="form-group">
-                            <label>Check-out Date</label>
-                            <input type="date" name="checkOut" required>
-                        </div>
-                    </div>
+                <div class="form-row two-col">
+    <div class="form-group">
+        <label>Check-in Date</label>
+        <input type="date" id="checkIn" name="checkIn" required>
+        <span class="error-msg" id="checkInError"></span>
+    </div>
+    <div class="form-group">
+        <label>Check-out Date</label>
+        <input type="date" id="checkOut" name="checkOut" required>
+        <span class="error-msg" id="checkOutError"></span>
+    </div>
+</div>
 
                     <div class="form-actions">
                         <a href="Dashboard.jsp" class="btn-secondary">Cancel</a>
@@ -172,5 +191,103 @@
     </div>
 </div>
 
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const form = document.getElementById('reservationForm');
+        
+        // Inputs
+        const contactInput = document.getElementById('contactNo');
+        const checkInInput = document.getElementById('checkIn');
+        const checkOutInput = document.getElementById('checkOut');
+        
+        // Error Message Spans
+        const contactError = document.getElementById('contactError');
+        const checkInError = document.getElementById('checkInError');
+        const checkOutError = document.getElementById('checkOutError');
+
+        // Helper function to show/hide errors
+        function showError(inputEl, errorEl, message) {
+            errorEl.textContent = message;
+            errorEl.classList.add('active');
+            inputEl.classList.add('input-error');
+        }
+
+        function clearError(inputEl, errorEl) {
+            errorEl.textContent = '';
+            errorEl.classList.remove('active');
+            inputEl.classList.remove('input-error');
+        }
+
+        // 1. Real-time Contact Number Validation (While typing)
+        contactInput.addEventListener('input', function() {
+            // Strip spaces to check the raw number
+            const phoneVal = this.value.replace(/\s+/g, ''); 
+            // Regex for Sri Lankan numbers: starts with 0 or +94, followed by 9 digits
+            const phoneRegex = /^(\+94|0)\d{9}$/;
+
+            if (phoneVal.length === 0) {
+                clearError(contactInput, contactError);
+            } else if (!phoneRegex.test(phoneVal)) {
+                showError(contactInput, contactError, "Format: 07X XXX XXXX or +947X XXX XXXX");
+            } else {
+                clearError(contactInput, contactError);
+            }
+        });
+
+        // 2. Set Minimum Check-in Date to Today
+        const today = new Date();
+        const formattedToday = today.toISOString().split('T')[0];
+        checkInInput.min = formattedToday;
+
+        // 3. Real-time Date Validation (While selecting)
+        function validateDates() {
+            clearError(checkInInput, checkInError);
+            clearError(checkOutInput, checkOutError);
+
+            if (checkInInput.value) {
+                // Prevent past dates in Check-in (if they manually type it)
+                if (checkInInput.value < formattedToday) {
+                    showError(checkInInput, checkInError, "Check-in cannot be in the past.");
+                }
+
+                // Dynamically set minimum Check-out date to 1 day after Check-in
+                const checkInDate = new Date(checkInInput.value);
+                checkInDate.setDate(checkInDate.getDate() + 1);
+                const minCheckOut = checkInDate.toISOString().split('T')[0];
+                checkOutInput.min = minCheckOut;
+
+                // Validate Check-out against Check-in
+                if (checkOutInput.value) {
+                    if (checkOutInput.value <= checkInInput.value) {
+                        showError(checkOutInput, checkOutError, "Check-out must be after Check-in.");
+                    } else {
+                        clearError(checkOutInput, checkOutError);
+                    }
+                }
+            }
+        }
+
+        // Trigger date validation whenever either date is changed
+        checkInInput.addEventListener('change', validateDates);
+        checkOutInput.addEventListener('change', validateDates);
+
+        // 4. Final safety check on Form Submit
+        form.addEventListener('submit', function(e) {
+            // Trigger all validations one last time
+            const inputEvent = new Event('input');
+            contactInput.dispatchEvent(inputEvent);
+            validateDates();
+
+            // If any error span is currently active, stop the form from submitting
+            const hasErrors = document.querySelectorAll('.error-msg.active').length > 0;
+            
+            if (hasErrors) {
+                e.preventDefault(); // Stop submission
+                // Focus on the first invalid field
+                document.querySelector('.input-error').focus();
+            }
+        });
+    });
+</script>
 </body>
 </html>
