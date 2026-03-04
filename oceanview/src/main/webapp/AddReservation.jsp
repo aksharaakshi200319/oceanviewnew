@@ -127,12 +127,13 @@
             <div class="form-card">
                 <form id="reservationForm" action="SaveReservationServlet" method="POST">
 
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Reservation Number</label>
-                            <input type="text" name="resNo" placeholder="e.g. OVR-101" required>
-                        </div>
-                    </div>
+                  <div class="form-row">
+					    <div class="form-group">
+					        <label>Reservation Number</label>
+					        <input type="text" name="res_id" value="Auto-Generated" disabled style="background: #222; cursor: not-allowed; color: var(--accent-cyan); font-weight: bold;">
+					        <p style="font-size: 0.7rem; color: var(--text-muted);">The system will assign the next OVR-ID upon saving.</p>
+					    </div>
+					</div>
 
                     <div class="form-row">
                         <div class="form-group">
@@ -228,7 +229,7 @@
             if (phoneVal.length === 0) {
                 clearError(contactInput, contactError);
             } else if (!phoneRegex.test(phoneVal)) {
-                showError(contactInput, contactError, "Format: 07X XXX XXXX or +947X XXX XXXX");
+                showError(contactInput, contactError, "Contact number should be within 10 digit and Number only");
             } else {
                 clearError(contactInput, contactError);
             }
