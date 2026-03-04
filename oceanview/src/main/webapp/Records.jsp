@@ -223,7 +223,7 @@
             </div>
 
             <!-- ── SEARCH BAR ── -->
-            <form method="GET" action="viewReservations.jsp">
+            <form method="GET" action="Records.jsp">
                 <div class="search-card">
                     <div class="search-group">
                         <label>Search</label>
@@ -252,55 +252,56 @@
             </form>
 
             <!-- ── RESULTS ── -->
-            <%
-                String query      = request.getParameter("query");
-                String roomFilter = request.getParameter("roomFilter");
-                int rowCount = 0;
+<%
+    String query      = request.getParameter("query");
+    String roomFilter = request.getParameter("roomFilter");
+    int rowCount = 0;
 
-                // Build dynamic SQL
-                StringBuilder sql = new StringBuilder("SELECT * FROM reservations WHERE 1=1");
-                if (query != null && !query.trim().isEmpty()) {
-                    sql.append(" AND (res_id LIKE ? OR guest_name LIKE ?)");
-                }
-                if (roomFilter != null && !roomFilter.trim().isEmpty()) {
-                    sql.append(" AND room_type = ?");
-                }
-                sql.append(" ORDER BY check_in DESC");
+    // ✅ FIXED: Use LOWER() for case-insensitive search
+    StringBuilder sql = new StringBuilder("SELECT * FROM reservations WHERE 1=1");
+    if (query != null && !query.trim().isEmpty()) {
+        sql.append(" AND (LOWER(res_id) LIKE LOWER(?) OR LOWER(guest_name) LIKE LOWER(?))");
+    }
+    if (roomFilter != null && !roomFilter.trim().isEmpty()) {
+        sql.append(" AND room_type = ?");
+    }
+    sql.append(" ORDER BY check_in DESC");
 
-                try {
-                    Class.forName("com.mysql.cj.jdbc.Driver");
-                    Connection con = DriverManager.getConnection(
-                        "jdbc:mysql://localhost:3306/ocean_view_db", "root", "");
-                    PreparedStatement pst = con.prepareStatement(sql.toString());
+    try {
+        Class.forName("com.mysql.cj.jdbc.Driver");
+        Connection con = DriverManager.getConnection(
+            "jdbc:mysql://localhost:3306/ocean_view_db", "root", "");
+        PreparedStatement pst = con.prepareStatement(sql.toString());
 
-                    int paramIdx = 1;
-                    if (query != null && !query.trim().isEmpty()) {
-                        String like = "%" + query.trim() + "%";
-                        pst.setString(paramIdx++, like);
-                        pst.setString(paramIdx++, like);
-                    }
-                    if (roomFilter != null && !roomFilter.trim().isEmpty()) {
-                        pst.setString(paramIdx++, roomFilter);
-                    }
+        int paramIdx = 1;
+        if (query != null && !query.trim().isEmpty()) {
+            // ✅ FIXED: trim() the like pattern properly
+            String like = "%" + query.trim().toLowerCase() + "%";
+            pst.setString(paramIdx++, like);
+            pst.setString(paramIdx++, like);
+        }
+        if (roomFilter != null && !roomFilter.trim().isEmpty()) {
+            pst.setString(paramIdx++, roomFilter.trim()); // ✅ trim() added
+        }
 
-                    ResultSet rs = pst.executeQuery();
+        ResultSet rs = pst.executeQuery();
 
-                    // Buffer rows into a list so we can show count first
-                    java.util.List<java.util.Map<String,String>> rows = new java.util.ArrayList<>();
-                    while (rs.next()) {
-                        java.util.Map<String,String> row = new java.util.LinkedHashMap<>();
-                        row.put("res_id",     rs.getString("res_id"));
-                        row.put("guest_name", rs.getString("guest_name"));
-                        row.put("room_type",  rs.getString("room_type"));
-                        row.put("check_in",   rs.getString("check_in"));
-                        row.put("check_out",  rs.getString("check_out"));
-                        row.put("total_bill", rs.getString("total_bill"));
-                        rows.add(row);
-                    }
-                    rowCount = rows.size();
-                    con.close();
-            %>
-
+        java.util.List<java.util.Map<String,String>> rows = new java.util.ArrayList<>();
+        while (rs.next()) {
+            java.util.Map<String,String> row = new java.util.LinkedHashMap<>();
+            row.put("res_id",     rs.getString("res_id"));
+            row.put("guest_name", rs.getString("guest_name"));
+            row.put("room_type",  rs.getString("room_type"));
+            row.put("check_in",   rs.getString("check_in"));
+            row.put("check_out",  rs.getString("check_out"));
+            row.put("total_bill", rs.getString("total_bill"));
+            rows.add(row);
+        }
+        rowCount = rows.size();
+        rs.close();       // ✅ Close ResultSet
+        pst.close();      // ✅ Close PreparedStatement
+        con.close();
+%>
             <!-- result count -->
             <div class="results-meta">
                 <span class="results-count">

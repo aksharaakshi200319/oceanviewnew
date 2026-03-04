@@ -1,6 +1,11 @@
-<%-- sidebar.jsp  — include this at the top of every page body --%>
-<%-- The including page must set String activePage before including this file --%>
-<%-- e.g.  <% String activePage = "reservation"; %> --%>
+<!-- ✅ Fixed - return stops execution immediately -->
+<%
+    if (session.getAttribute("user") == null) { 
+        response.sendRedirect("Login.jsp"); 
+        String activePage = "reservation";
+        return;  // ← This is the fix
+    }
+%>
 <aside class="sidebar">
 
     <div class="sidebar-brand">

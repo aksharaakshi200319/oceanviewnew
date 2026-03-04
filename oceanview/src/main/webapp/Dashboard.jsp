@@ -1,7 +1,11 @@
 <%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
+<!-- ✅ Fixed - return stops execution immediately -->
 <%
-    if (session.getAttribute("user") == null) { response.sendRedirect("Login.jsp"); }
-    String activePage = "dashboard";
+    if (session.getAttribute("user") == null) { 
+        response.sendRedirect("Login.jsp"); 
+        String activePage = "dashboard";
+        return;  // ← This is the fix
+    }
 %>
 <!DOCTYPE html>
 <html lang="en">
