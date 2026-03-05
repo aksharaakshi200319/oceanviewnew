@@ -1,10 +1,13 @@
 <!-- ✅ Fixed - return stops execution immediately -->
 <%
+    // 1. Check authentication first
     if (session.getAttribute("user") == null) { 
         response.sendRedirect("Login.jsp"); 
-        String activePage = "reservation";
-        return;  // ← This is the fix
+        return;  // Your fix here is perfectly correct to stop execution!
     }
+
+    // 2. Declare activePage OUTSIDE the if-block so the HTML below can see it
+    String activePage = "reservation"; // You can dynamically change this based on the actual page
 %>
 <aside class="sidebar">
 
