@@ -185,7 +185,10 @@
             font-family: 'Inter', sans-serif;
         }
         .action-btn:hover { border-color: var(--accent-cyan); color: var(--accent-cyan); background: rgba(0,212,255,.05); }
+        .action-btn.edit:hover { border-color: var(--accent-amber); color: var(--accent-amber); background: rgba(245,158,11,.05); }
         .action-btn svg { width: 12px; height: 12px; }
+
+        .actions-cell { display: flex; gap: 6px; align-items: center; }
 
         /* ── EMPTY / ERROR STATES ── */
         .empty-state {
@@ -196,6 +199,27 @@
         .empty-state svg { width: 40px; height: 40px; margin-bottom: 14px; opacity: 0.35; display: block; margin-inline: auto; }
         .empty-state .empty-title { font-size: 0.95rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px; }
         .empty-state .empty-sub   { font-size: 0.8rem; }
+
+        /* ── TOAST (success/error from redirect) ── */
+        .toast {
+            position: fixed;
+            top: 24px; right: 24px;
+            padding: 14px 20px;
+            border-radius: 10px;
+            font-size: 0.85rem; font-weight: 500;
+            display: flex; align-items: center; gap: 10px;
+            z-index: 9999;
+            animation: slideIn 0.3s ease both;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+        }
+        .toast.success { background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.3); color: var(--accent-green); }
+        .toast.error   { background: rgba(239,68,68,0.15);  border: 1px solid rgba(239,68,68,0.3);  color: var(--accent-red); }
+        .toast svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(20px); }
+            to   { opacity: 1; transform: translateX(0); }
+        }
     </style>
 </head>
 <body>
@@ -219,6 +243,23 @@
                 <p>Search and view all reservation details.</p>
             </div>
 
+            <%-- Toast for update success/error --%>
+<%
+    String toastMsg  = request.getParameter("msg");
+    String toastType = request.getParameter("type");
+%>
+<% if (toastMsg != null && !toastMsg.isEmpty()) { %>
+<div class="toast <%= toastType != null ? toastType : "success" %>" id="toast">
+    <% if ("error".equals(toastType)) { %>
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+    <% } else { %>
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+    <% } %>
+    <%= toastMsg %>
+</div>
+<script>setTimeout(() => { const t = document.getElementById('toast'); if(t) t.style.display='none'; }, 3500);</script>
+<% } %>
+
             <!-- ── SEARCH BAR ── -->
             <form method="GET" action="Records.jsp">
                 <div class="search-card">
@@ -241,7 +282,7 @@
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
                         Search
                     </button>
-                    <a href="viewReservations.jsp" class="btn-reset">
+                    <a href="Records.jsp" class="btn-reset">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
                         Reset
                     </a>
@@ -254,7 +295,6 @@
     String roomFilter = request.getParameter("roomFilter");
     int rowCount = 0;
 
-    // ✅ FIXED: Use LOWER() for case-insensitive search
     StringBuilder sql = new StringBuilder("SELECT * FROM reservations WHERE 1=1");
     if (query != null && !query.trim().isEmpty()) {
         sql.append(" AND (LOWER(res_id) LIKE LOWER(?) OR LOWER(guest_name) LIKE LOWER(?))");
@@ -272,13 +312,12 @@
 
         int paramIdx = 1;
         if (query != null && !query.trim().isEmpty()) {
-            // ✅ FIXED: trim() the like pattern properly
             String like = "%" + query.trim().toLowerCase() + "%";
             pst.setString(paramIdx++, like);
             pst.setString(paramIdx++, like);
         }
         if (roomFilter != null && !roomFilter.trim().isEmpty()) {
-            pst.setString(paramIdx++, roomFilter.trim()); // ✅ trim() added
+            pst.setString(paramIdx++, roomFilter.trim());
         }
 
         ResultSet rs = pst.executeQuery();
@@ -295,8 +334,8 @@
             rows.add(row);
         }
         rowCount = rows.size();
-        rs.close();       // ✅ Close ResultSet
-        pst.close();      // ✅ Close PreparedStatement
+        rs.close();
+        pst.close();
         con.close();
 %>
             <!-- result count -->
@@ -350,10 +389,18 @@
                                 <td><%= row.get("check_out") %></td>
                                 <td class="bill-amount"><%= formattedBill %></td>
                                 <td>
-                                    <a href="calculateBill.jsp?searchID=<%= row.get("res_id") %>" class="action-btn">
-                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
-                                        Invoice
-                                    </a>
+                                    <div class="actions-cell">
+                                        <!-- Invoice button -->
+                                        <a href="calculateBill.jsp?searchID=<%= row.get("res_id") %>" class="action-btn">
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
+                                            Invoice
+                                        </a>
+                                        <!-- Edit button -->
+                                        <a href="EditReservation.jsp?resId=<%= row.get("res_id") %>" class="action-btn edit">
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                                            Edit
+                                        </a>
+                                    </div>
                                 </td>
                             </tr>
                         <% } %>
