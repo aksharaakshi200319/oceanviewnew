@@ -11,42 +11,48 @@ import java.sql.*;
 public class LoginServlet extends HttpServlet {
     private static final long serialVersionUID = 1L;
 
-    protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+    protected void doPost(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+
         String uname = request.getParameter("username");
         String upass = request.getParameter("password");
-        
-        // Database credentials - Check these carefully!
-        String dbUrl = "jdbc:mysql://localhost:3306/ocean_view_db";
+
+        String dbUrl  = "jdbc:mysql://localhost:3306/ocean_view_db";
         String dbUser = "root";
-        String dbPass = ""; // Your MySQL password
+        String dbPass = "";
 
         try {
-            // 1. Load Driver
             Class.forName("com.mysql.cj.jdbc.Driver");
-            
-            // 2. Connect
             Connection con = DriverManager.getConnection(dbUrl, dbUser, dbPass);
-            
-            // 3. Query
+
             String sql = "SELECT * FROM users WHERE username=? AND password=?";
             PreparedStatement pst = con.prepareStatement(sql);
             pst.setString(1, uname);
             pst.setString(2, upass);
-            
             ResultSet rs = pst.executeQuery();
-            
+
             if (rs.next()) {
-                // Success
-                HttpSession session = request.getSession();
+                // ── Invalidate any old session first, then create a fresh one ──
+                HttpSession oldSession = request.getSession(false);
+                if (oldSession != null) oldSession.invalidate();
+
+                HttpSession session = request.getSession(true);
                 session.setAttribute("user", uname);
+                session.setMaxInactiveInterval(30 * 60); // 30-minute timeout
+
+                // Prevent caching of the login response
+                response.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+                response.setHeader("Pragma",        "no-cache");
+                response.setDateHeader("Expires",   0);
+
+                rs.close(); pst.close(); con.close();
                 response.sendRedirect("Dashboard.jsp");
             } else {
-                // Invalid credentials
+                rs.close(); pst.close(); con.close();
                 request.setAttribute("errorMessage", "Invalid username or password.");
                 request.getRequestDispatcher("Login.jsp").forward(request, response);
             }
-            con.close();
-            
+
         } catch (ClassNotFoundException e) {
             request.setAttribute("errorMessage", "Driver Error: MySQL Connector not found!");
             request.getRequestDispatcher("Login.jsp").forward(request, response);
@@ -55,7 +61,7 @@ public class LoginServlet extends HttpServlet {
             request.getRequestDispatcher("Login.jsp").forward(request, response);
         } catch (Exception e) {
             request.setAttribute("errorMessage", "System Error: " + e.getMessage());
-            request.getRequestDispatcher("login.jsp").forward(request, response);
+            request.getRequestDispatcher("Login.jsp").forward(request, response);
         }
     }
 }
